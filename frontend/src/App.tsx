@@ -1,14 +1,59 @@
-import AuthScreen from './components/auth/AuthScreen'
-import type { AuthSubmitPayload } from './types/auth'
+import { useEffect, useState } from "react";
+import AuthScreen from "./components/auth/AuthScreen";
+import Dashboard from "./components/dashboard/Dashboard";
+import { authApi, type AuthUser } from "./services/authApi";
 
 function App() {
-  const handleAuthSubmit = async (payload: AuthSubmitPayload) => {
-    // Ready to wire into JWT backend:
-    // POST /api/auth/login  or  POST /api/auth/register
-    console.log('Auth payload ready for API:', payload)
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    authApi
+      .me()
+      .then((currentUser) => {
+        if (isMounted) {
+          setUser(currentUser);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setCheckingSession(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-black text-white">
+        Checking session...
+      </div>
+    );
   }
 
-  return <AuthScreen onSubmit={handleAuthSubmit} />
+  if (user) {
+    return (
+      <Dashboard
+        user={user}
+        onLogout={() => {
+          setUser(null);
+          window.history.replaceState(null, "", "/");
+        }}
+      />
+    );
+  }
+
+  return <AuthScreen />;
 }
 
-export default App
+export default App;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const registerSchema = z.object({
-  //   name: z.string().min(5, "Name must be of at least 5 characters"),
+  name: z.string().trim().min(1, "Name is required"),
   email: z.email("Invalid email").nonempty("Email is required"),
   keyA: z.string().nonempty("Auth key is required"),
   publicKey: z.string().nonempty("Public key is required"),
@@ -17,15 +17,11 @@ export const loginSchema = z.object({
 });
 
 export const conversationSchema = z.object({
-  participantIds: z
-    .array(z.string().uuid())
-    .min(1, "At least one participant is required"),
+  recipientId: z.string().uuid("Recipient id must be a valid UUID"),
 });
 
 export const messageSchema = z.object({
-  conversationId: z.string().uuid(),
-  senderId: z.string().uuid(),
-  content: z.string().nonempty("Message content is required"),
+  conversationId: z.string().uuid("Conversation id must be a valid UUID"),
   receiverCiphertext: z.string().nonempty("Receiver ciphertext is required"),
   receiverIv: z.string().nonempty("Receiver IV is required"),
   senderCiphertext: z.string().nonempty("Sender ciphertext is required"),

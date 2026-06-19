@@ -1,5 +1,4 @@
 import type { AuthMode } from '../../types/auth'
-import BrandLogo from './BrandLogo'
 
 interface AuthHeaderProps {
   mode: AuthMode
@@ -11,10 +10,9 @@ export default function AuthHeader({ mode, onModeChange }: AuthHeaderProps) {
 
   return (
     <header className="mb-12 w-full">
-      <BrandLogo />
-
+    
       <h1 className="mx-auto mt-5 max-w-full text-center text-[30px] font-bold leading-tight tracking-tight text-white sm:text-[34px]">
-        Welcome to Jettmessages
+        Welcome to Jett Messages
       </h1>
 
       <p className="mx-auto mt-3 max-w-md text-center text-base text-[#9CA3AF]">

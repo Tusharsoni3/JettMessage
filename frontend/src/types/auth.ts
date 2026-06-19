@@ -1,27 +1,29 @@
-export type AuthMode = 'login' | 'signup'
+export type AuthMode = "login" | "signup";
 
 export interface AuthFormState {
-  email: string
-  password: string
-  confirmPassword: string
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export interface AuthFormErrors {
-  email?: string
-  password?: string
-  confirmPassword?: string
+  name?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
 }
 
 export interface LoginCredentials {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
 export interface SignupCredentials extends LoginCredentials {
-  confirmPassword: string
+  name: string;
+  confirmPassword: string;
 }
 
-export interface AuthSubmitPayload {
-  mode: AuthMode
-  credentials: LoginCredentials | SignupCredentials
-}
+export type AuthSubmitPayload =
+  | { mode: "login"; credentials: LoginCredentials }
+  | { mode: "signup"; credentials: SignupCredentials };

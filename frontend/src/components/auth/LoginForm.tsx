@@ -74,14 +74,7 @@ export default function LoginForm({
         </GradientButton>
       </div>
 
-      <div className="text-center">
-        <a
-          href="#"
-          className="text-base font-medium text-white transition-colors hover:text-[#FF6B35]"
-        >
-          Forget Password?
-        </a>
-      </div>
+   
     </form>
   )
 }

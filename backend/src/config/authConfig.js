@@ -1,4 +1,3 @@
-// utils/authUtils.js
 import jwt from 'jsonwebtoken';
 
 const generateTokenAndSetCookie = (res, userId) => {

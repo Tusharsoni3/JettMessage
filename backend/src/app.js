@@ -1,17 +1,22 @@
 import express from "express";
+import { createServer } from "node:http";
 import cors from "cors";
 import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import  authRouter  from "./routes/auth.route.js";
+import authRouter from "./routes/auth.route.js";
+import userRouter from "./routes/user.route.js";
+import conversationRouter from "./routes/conversation.route.js";
+import messageRouter from "./routes/message.route.js";
 import cookieParser from "cookie-parser";
-
-
+import { initSocket } from "./socket/index.js";
 
 dotenv.config();
 const port = process.env.PORT || 3000;
 
 const app = express();
+const server = createServer(app);
+initSocket(server);
 
 app.use(
   cors({
@@ -29,9 +34,12 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/users", userRouter);
+app.use("/api/conversations", conversationRouter);
+app.use("/api/messages", messageRouter);
 
-app.listen(process.env.PORT, () => {
-  console.log("server is running at port 3000");
+server.listen(port, () => {
+  console.log(`server is running at port ${port}`);
 });
 
 export default app;
