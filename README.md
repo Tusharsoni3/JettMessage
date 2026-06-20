@@ -105,6 +105,3 @@ By default, the frontend should be available at `http://localhost:3000` (or whic
 
 Contributions, issues, and feature requests are welcome. Feel free to open an issue or submit a pull request.
 
-## License
-
-No license has been specified yet for this repository. Consider adding one (e.g. MIT) to clarify usage rights.
