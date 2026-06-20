@@ -1,7 +1,14 @@
+//services/presenceStore.js
 import { createClient } from "redis";
+
+export const HEARTBEAT_INTERVAL_MS = 10000; // 10s — client should emit "heartbeat" at this cadence
+const PRESENCE_TTL_SECONDS = 15; // ~1.5x heartbeat interval, tolerates one missed beat
 
 const memorySocketsByUser = new Map();
 const memoryOnlineUsers = new Set();
+
+// Tracked regardless of backend (redis or memory) — used to detect and broadcast staleness.
+const lastHeartbeatByUser = new Map();
 
 let client;
 let redisReady = false;
@@ -30,6 +37,11 @@ export const initPresenceStore = async () => {
     );
   });
 
+  client.on("ready", () => {
+    redisReady = true;
+    console.log("Redis presence store connected");
+  });
+
   try {
     await client.connect();
     redisReady = true;
@@ -44,10 +56,16 @@ export const initPresenceStore = async () => {
 };
 
 export const markUserSocketOnline = async (userId, socketId) => {
+  lastHeartbeatByUser.set(userId, Date.now());
+
   if (redisReady) {
+    const previousStatus = await client.get(statusKey(userId));
     await client.sAdd(socketsKey(userId), socketId);
-    await client.set(statusKey(userId), "online");
-    return true;
+    await client.expire(socketsKey(userId), PRESENCE_TTL_SECONDS);
+    await client.set(statusKey(userId), "online", {
+      EX: PRESENCE_TTL_SECONDS,
+    });
+    return previousStatus !== "online";
   }
 
   const sockets = memorySocketsByUser.get(userId) ?? new Set();
@@ -58,6 +76,16 @@ export const markUserSocketOnline = async (userId, socketId) => {
   return wasOffline;
 };
 
+// Call on every "heartbeat" event from the client — keeps the TTL alive.
+export const refreshPresenceHeartbeat = async (userId) => {
+  lastHeartbeatByUser.set(userId, Date.now());
+
+  if (redisReady) {
+    await client.expire(socketsKey(userId), PRESENCE_TTL_SECONDS);
+    await client.expire(statusKey(userId), PRESENCE_TTL_SECONDS);
+  }
+};
+
 export const markUserSocketOffline = async (userId, socketId) => {
   if (redisReady) {
     await client.sRem(socketsKey(userId), socketId);
@@ -66,6 +94,7 @@ export const markUserSocketOffline = async (userId, socketId) => {
     if (remainingSockets === 0) {
       await client.del(socketsKey(userId));
       await client.del(statusKey(userId));
+      lastHeartbeatByUser.delete(userId);
       return true;
     }
 
@@ -73,12 +102,16 @@ export const markUserSocketOffline = async (userId, socketId) => {
   }
 
   const sockets = memorySocketsByUser.get(userId);
-  if (!sockets) return false;
+  if (!sockets) {
+    lastHeartbeatByUser.delete(userId);
+    return false;
+  }
 
   sockets.delete(socketId);
   if (sockets.size === 0) {
     memorySocketsByUser.delete(userId);
     memoryOnlineUsers.delete(userId);
+    lastHeartbeatByUser.delete(userId);
     return true;
   }
 
@@ -109,4 +142,26 @@ export const getPresenceStatuses = async (userIds) => {
   }
 
   return statuses;
+};
+
+// Run on an interval (e.g. every HEARTBEAT_INTERVAL_MS) from index.js.
+// Returns userIds that just went stale so the caller can broadcast "offline".
+export const sweepStalePresence = () => {
+  const now = Date.now();
+  const staleUserIds = [];
+
+  for (const [userId, lastHeartbeat] of lastHeartbeatByUser.entries()) {
+    if (now - lastHeartbeat > PRESENCE_TTL_SECONDS * 1000) {
+      staleUserIds.push(userId);
+    }
+  }
+
+  for (const userId of staleUserIds) {
+    lastHeartbeatByUser.delete(userId);
+    memorySocketsByUser.delete(userId);
+    memoryOnlineUsers.delete(userId);
+    // Redis keys already auto-expired via TTL; nothing extra to clean up there.
+  }
+
+  return staleUserIds;
 };

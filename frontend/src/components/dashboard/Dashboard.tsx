@@ -125,6 +125,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   >({});
   const deliveredReceiptIds = useRef<Set<string>>(new Set());
   const readReceiptIds = useRef<Set<string>>(new Set());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const displayName = useMemo(() => user.name || user.email, [user]);
   const getPresenceStatus = (userId: string): PresenceStatus =>
@@ -398,6 +399,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     };
   }, [messages, user.id, user.publicKey]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [decryptedMessages, conversationId]);
+
   const handleOpenConversation = async (conversation: ConversationListItem) => {
     setChatError(null);
     try {
@@ -536,7 +541,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   };
 
   return (
-    <div className="h-svh overflow-hidden bg-[#1A1A1A] p-3 text-[#F0F0F0] sm:p-4 lg:p-6">
+    <div className="h-svh overflow-hidden bg-[#1A1A1A] text-[#F0F0F0]">
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
@@ -556,10 +561,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           scrollbar-color: #004D61 transparent;
         }
       `}</style>
-      <div className="flex h-full min-h-0 gap-3 overflow-hidden">
+      <div className="flex h-full min-h-0 overflow-hidden">
         {/* Sidebar */}
         <aside
-          className={`min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A] shadow-2xl shadow-black/40 md:flex md:w-[340px] lg:w-[380px] ${
+          className={`min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#1A1A1A] md:flex md:w-[340px] lg:w-[380px] ${
             selectedContact ? "hidden" : "flex"
           }`}
         >
@@ -750,7 +755,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
         {/* Chat panel */}
         <main
-          className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A] shadow-2xl shadow-black/40 md:flex ${
+          className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#1A1A1A] md:flex ${
             selectedContact ? "flex" : "hidden"
           }`}
         >
@@ -846,6 +851,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     })
                   )}
                 </div>
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Composer */}

@@ -1,3 +1,4 @@
+//socket/index.js
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { and, eq, ne } from "drizzle-orm";
@@ -5,9 +6,12 @@ import { db } from "../db/index.js";
 import { messages, participants } from "../db/schema.js";
 import {
   getPresenceStatuses,
+  HEARTBEAT_INTERVAL_MS,
   initPresenceStore,
   markUserSocketOffline,
   markUserSocketOnline,
+  refreshPresenceHeartbeat,
+  sweepStalePresence,
 } from "../services/presenceStore.js";
 
 let io;
@@ -131,8 +135,10 @@ export const initSocket = (httpServer) => {
       credentials: true,
       methods: ["GET", "POST"],
     },
-    pingInterval: 25000,
-    pingTimeout: 20000,
+    // Heartbeat lowered to 10s so dropped/ghost connections are detected fast
+    // instead of lingering online for up to 45s.
+    pingInterval: 10000,
+    pingTimeout: 5000,
   });
 
   io.use((socket, next) => {
@@ -181,6 +187,15 @@ export const initSocket = (httpServer) => {
       } catch (error) {
         console.error("presence:get error:", error);
         callback?.({});
+      }
+    });
+
+    // Client should emit this every HEARTBEAT_INTERVAL_MS (10s) while connected.
+    socket.on("heartbeat", async () => {
+      try {
+        await refreshPresenceHeartbeat(userId);
+      } catch (error) {
+        console.error("heartbeat error:", error);
       }
     });
 
@@ -234,6 +249,20 @@ export const initSocket = (httpServer) => {
       }
     });
   });
+
+  // Safety net: if a client's socket dies without firing "disconnect" (sleep,
+  // crash, killed app, network drop) and no heartbeat arrives in time, force
+  // them offline and notify their friends instead of leaving a ghost session.
+  setInterval(async () => {
+    try {
+      const staleUserIds = sweepStalePresence();
+      for (const userId of staleUserIds) {
+        await broadcastPresenceToFriends(userId, "offline");
+      }
+    } catch (error) {
+      console.error("presence sweep error:", error);
+    }
+  }, HEARTBEAT_INTERVAL_MS);
 
   return io;
 };

@@ -14,7 +14,24 @@ export interface PresenceUpdate {
   status: PresenceStatus;
 }
 
+const HEARTBEAT_INTERVAL_MS = 10000; // must match HEARTBEAT_INTERVAL_MS on the server
+
 let socket: Socket | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+function startHeartbeat(activeSocket: Socket) {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    activeSocket.emit("heartbeat");
+  }, HEARTBEAT_INTERVAL_MS);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
 
 export const socketService = {
   connect(): Socket {
@@ -22,6 +39,14 @@ export const socketService = {
       socket = io("http://localhost:3000", {
         withCredentials: true,
         transports: ["websocket", "polling"],
+      });
+
+      socket.on("connect", () => {
+        startHeartbeat(socket!);
+      });
+
+      socket.on("disconnect", () => {
+        stopHeartbeat();
       });
     }
     return socket;
@@ -78,6 +103,7 @@ export const socketService = {
   },
 
   disconnect() {
+    stopHeartbeat();
     socket?.disconnect();
     socket = null;
   },
